@@ -231,6 +231,9 @@ static const char * dvb_scan ( Dvb *dvb )
 	parms->lna = dvb->lna;
 	parms->freq_bpf = 0;
 
+	dvb->freq_scan  = 0;
+	dvb->progs_scan = 0;
+
 	dvb_info_stats ( dvb );
 
 	dvb->thread = g_thread_new ( "scan-thread", (GThreadFunc)dvb_scan_thread, dvb );
@@ -242,7 +245,7 @@ static const char * dvb_scan ( Dvb *dvb )
 static void dvb_handler_scan ( Dvb *dvb, uint8_t a, uint8_t f, uint8_t d, uint8_t t, uint8_t q, uint8_t c, uint8_t n, uint8_t o, 
 	int8_t sn, uint8_t dq, const char *lnb_name, const char *lna, const char *fi, const char *fo, const char *fmi, const char *fmo )
 {
-	if ( dvb->dvb_scan || dvb->dvb_zap ) { g_signal_emit_by_name ( dvb, "dvb-scan-info", "Works ..." ); return; }
+	if ( dvb->dvb_scan || dvb->dvb_zap ) { g_signal_emit_by_name ( dvb, "dvb-scan-info", "It works ..." ); return; }
 
 	dvb->adapter   = a;
 	dvb->frontend  = f;
@@ -512,6 +515,10 @@ static const char * dvb_zap ( uint8_t a, uint8_t f, uint8_t d, uint8_t num, cons
 	parms->freq_bpf = 0;
 	parms->lna = -1;
 
+	dvb->pids[0] = 0;
+	dvb->pids[1] = 0;
+	dvb->pids[2] = 0;
+
 	dvb->descr_num = num;
 
 	if ( !dvb_zap_parse ( file, channel, FILE_DVBV5, parms, dvb->pids ) )
@@ -527,7 +534,7 @@ static const char * dvb_zap ( uint8_t a, uint8_t f, uint8_t d, uint8_t num, cons
 
 	if ( freq )
 	{
-		dvb->descr_num = num;
+		dvb->freq_scan = freq;
 
 		dvb_zap_set_dmx ( dvb );
 
@@ -549,7 +556,9 @@ static const char * dvb_zap ( uint8_t a, uint8_t f, uint8_t d, uint8_t num, cons
 
 static void dvb_handler_zap ( Dvb *dvb, uint8_t a, uint8_t f, uint8_t d, uint8_t num, const char *channel, const char *file )
 {
-	if ( dvb->dvb_scan || dvb->dvb_zap ) { g_signal_emit_by_name ( dvb, "dvb-scan-info", "Works ..." ); return; }
+	if ( dvb->dvb_scan || dvb->dvb_zap ) { g_signal_emit_by_name ( dvb, "dvb-scan-info", "It works ..." ); return; }
+
+	dvb->freq_scan = 0;
 
 	const char *ret_str = dvb_zap ( a, f, d, num, channel, file, dvb );
 
@@ -696,6 +705,13 @@ static void dvb_init ( Dvb *dvb )
 	dvb->sat_num = -1;
 	dvb->diseqc_wait = 0;
 
+	dvb->pids[0] = 0;
+	dvb->pids[1] = 0;
+	dvb->pids[2] = 0;
+
+	dvb->descr_num = 0;
+	dvb->freq_scan = 0;
+
 	dvb->input_file  = NULL;
 	dvb->output_file = NULL;
 
@@ -767,4 +783,3 @@ Dvb * dvb_new ( void )
 
 	return dvb;
 }
-
