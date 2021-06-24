@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Dvbv5-Gtk
+Comment=DVBv5 tool
+Exec=dvbv5-gtk
+Icon=display
+Terminal=false
+Type=Application
+Categories=AudioVideo;Video;

@@ -10,3 +10,13 @@ c = run_command('sh', '-c', 'for file in src/*.h src/*.c; do echo $file; done')
 src = c.stdout().strip().split('\n')
 
 executable(meson.project_name(), src, dependencies: dvb5_deps, c_args: c_args, install: true)
+
+desktop = meson.project_name() + '.desktop'
+
+configure_file(
+  input: join_paths('data', 'desktop'),
+  output: desktop,
+  copy: true,
+  install: true,
+  install_dir: join_paths('share', 'applications')
+)
