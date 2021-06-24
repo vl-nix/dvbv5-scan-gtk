@@ -29,3 +29,4 @@
 4. Install: sudo ninja -C build install
 
 5. Uninstall: sudo ninja -C build uninstall
+
