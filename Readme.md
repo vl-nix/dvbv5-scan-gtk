@@ -20,7 +20,7 @@
 
 #### Build
 
-1. Clone: git clone https://github.com/vl-nix/dvbv5-gtk.git ( git@github.com:vl-nix/dvbv5-gtk.git )
+1. Clone: git clone https://github.com/vl-nix/dvbv5-gtk.git ( git clone git@github.com:vl-nix/dvbv5-gtk.git )
 
 2. Configure: meson build --prefix /usr --strip
 

@@ -111,7 +111,7 @@ static void dvb5_handler_scan_stop ( Status *status, Dvb5Win *win )
 static void dvb5_handler_scan_data ( G_GNUC_UNUSED Scan *scan, uint8_t a, uint8_t f, uint8_t d, uint8_t t, gboolean q, gboolean c, gboolean n, gboolean o, 
 	int8_t sn, uint8_t dq, const char *lnb, const char *lna, const char *fi, const char *fo, const char *fmi, const char *fmo, Dvb5Win *win )
 {
-	uint8_t adapter = (uint8_t)a, frontend = (uint8_t)f, demux = (uint8_t)d, time_mult = (uint8_t)t;
+	uint8_t adapter = a, frontend = f, demux = d, time_mult = t;
 	uint8_t new_freqs = ( q ) ? 1 : 0, get_detect = ( c ) ? 1 : 0, get_nit = ( n ) ? 1 : 0, other_nit = ( o ) ? 1 : 0;
 
 	if ( !g_file_test ( fi, G_FILE_TEST_EXISTS ) )

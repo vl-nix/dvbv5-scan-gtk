@@ -14,6 +14,7 @@ struct _Dvb
 	GObject parent_instance;
 
 	struct dvb_device *dvb_scan, *dvb_zap, *dvb_fe;
+	struct dvb_open_descriptor *video_fd, *audio_fd;
 
 	char *demux_dev;
 	char *input_file, *output_file;
@@ -431,26 +432,25 @@ static uint8_t dvb_zap_set_pes_filter ( struct dvb_open_descriptor *fd, uint16_t
 static void dvb_zap_set_dmx ( Dvb *dvb )
 {
 	// dvb->pids[3];  0 - sid, 1 - vpid, 2 - apid
-	struct dvb_open_descriptor *video_fd, *audio_fd;
 
 	uint32_t bsz = ( dvb->descr_num == DMX_OUT_TS_TAP || dvb->descr_num == 4 ) ? 64 * 1024 : 0;
 
 	if ( dvb->pids[1] )
 	{
-		video_fd = dvb_dev_open ( dvb->dvb_zap, dvb->demux_dev, O_RDWR );
+		dvb->video_fd = dvb_dev_open ( dvb->dvb_zap, dvb->demux_dev, O_RDWR );
 
-		if ( video_fd )
-			dvb_zap_set_pes_filter ( video_fd, dvb->pids[1], DMX_PES_VIDEO, dvb->descr_num, bsz );
+		if ( dvb->video_fd )
+			dvb_zap_set_pes_filter ( dvb->video_fd, dvb->pids[1], DMX_PES_VIDEO, dvb->descr_num, bsz );
 		else
 			g_critical ( "%s:: VIDEO: failed opening %s", __func__, dvb->demux_dev );
 	}
 
 	if ( dvb->pids[2] )
 	{
-		audio_fd = dvb_dev_open ( dvb->dvb_zap, dvb->demux_dev, O_RDWR );
+		dvb->audio_fd = dvb_dev_open ( dvb->dvb_zap, dvb->demux_dev, O_RDWR );
 
-		if ( audio_fd )
-			dvb_zap_set_pes_filter ( audio_fd, dvb->pids[2], DMX_PES_AUDIO, dvb->descr_num, bsz );
+		if ( dvb->audio_fd )
+			dvb_zap_set_pes_filter ( dvb->audio_fd, dvb->pids[2], DMX_PES_AUDIO, dvb->descr_num, bsz );
 		else
 			g_critical ( "%s:: AUDIO: failed opening %s", __func__, dvb->demux_dev );
 	}
@@ -515,10 +515,6 @@ static const char * dvb_zap ( uint8_t a, uint8_t f, uint8_t d, uint8_t num, cons
 	parms->freq_bpf = 0;
 	parms->lna = -1;
 
-	dvb->pids[0] = 0;
-	dvb->pids[1] = 0;
-	dvb->pids[2] = 0;
-
 	dvb->descr_num = num;
 
 	if ( !dvb_zap_parse ( file, channel, FILE_DVBV5, parms, dvb->pids ) )
@@ -569,6 +565,16 @@ static void dvb_handler_zap_stop ( Dvb *dvb )
 {
 	if ( dvb->dvb_zap )
 	{
+		dvb->pids[0] = 0;
+		dvb->pids[1] = 0;
+		dvb->pids[2] = 0;
+
+		if ( dvb->audio_fd ) dvb_dev_close ( dvb->audio_fd );
+		if ( dvb->video_fd ) dvb_dev_close ( dvb->video_fd );
+
+		dvb->audio_fd = NULL;
+		dvb->video_fd = NULL;
+
 		dvb_dev_free ( dvb->dvb_zap );
 		dvb->dvb_zap = NULL;
 		dvb->demux_dev = NULL;
@@ -708,6 +714,9 @@ static void dvb_init ( Dvb *dvb )
 	dvb->pids[0] = 0;
 	dvb->pids[1] = 0;
 	dvb->pids[2] = 0;
+
+	dvb->audio_fd = NULL;
+	dvb->video_fd = NULL;
 
 	dvb->descr_num = 0;
 	dvb->freq_scan = 0;
