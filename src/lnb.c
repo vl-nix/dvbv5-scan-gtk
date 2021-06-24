@@ -1,40 +1,19 @@
 /*
-* Copyright 2020 Stepan Perun
+* Copyright 2021 Stepan Perun
 * This program is free software.
 *
 * License: Gnu General Public License GPL-2
 * file:///usr/share/common-licenses/GPL-2
-* http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+* http://www.gnu.org/licenses/gpl-2.0.html
 */
 
 #include "lnb.h"
 
-enum lnb_type
-{
-	LNB_EXT,
-	LNB_UNV,
-	LNB_DBS,
-	LNB_STD,
-	LNB_L170,
-	LNB_L175,
-	LNB_L113,
-	LNB_ENH,
-	LNB_QPH,
-	LNB_CBD,
-	LNB_CMT,
-	LNB_DSH,
-	LNB_BSJ,
-	LNB_SBRS,
-	LNB_OBRS,
-	LNB_AMZ3,
-	LNB_AMZ2,
-	LNB_GBRS,
-	LNB_ALL
-};
+#include <string.h>
 
-typedef struct _DvbDescrLnb DvbDescrLnb;
+typedef struct _DvbLnb DvbLnb;
 
-struct _DvbDescrLnb
+struct _DvbLnb
 {
 	uint8_t descr_num;
 	const char *abr;
@@ -42,7 +21,7 @@ struct _DvbDescrLnb
 	const char *desc;
 };
 
-const DvbDescrLnb dvb_descr_lnb_type_n[] =
+const DvbLnb dvb_lnb_type_n[] =
 {
 	{ LNB_EXT,  "EXT",   "EXTENDED", "Freqs: 10700 to 11700 MHz, LO: 9750 MHz\nFreqs: 11700 to 12750 MHz, LO: 10600 MHz" },
 	{ LNB_UNV,  "UNV",   "UNIVERSAL", "Freqs: 10800 to 11800 MHz, LO: 9750 MHz\nFreqs: 11600 to 12700 MHz, LO: 10600 MHz" },
@@ -64,12 +43,15 @@ const DvbDescrLnb dvb_descr_lnb_type_n[] =
 	{ LNB_GBRS, "GVBRS", "GVT-BRASILSAT", "Vertical: 11010 to 11067 MHz, LO: 12860 MHz\nVertical: 11704 to 11941 MHz, LO: 13435 MHz\nHorizontal: 10962 to 11199 MHz, LO: 13112 MHz\nHorizontal: 11704 to 12188 MHz, LO: 13138 MHz" }
 };
 
-void lnb_set_name_combo ( GtkComboBoxText *combo_lnb )
+const char * lnb_get_abr ( uint8_t num )
 {
-	uint8_t c = 0; for ( c = 0; c < LNB_ALL; c++ )
-	{
-		gtk_combo_box_text_append ( combo_lnb, dvb_descr_lnb_type_n[c].name, dvb_descr_lnb_type_n[c].abr );
-	}
+	return dvb_lnb_type_n[num].abr;
+
+}
+
+const char * lnb_get_name ( uint8_t num )
+{
+	return dvb_lnb_type_n[num].name;
 
 }
 
@@ -77,7 +59,7 @@ const char * lnb_get_desc ( const char *lnb_name )
 {
 	uint8_t c = 0; for ( c = 0; c < LNB_ALL; c++ )
 	{
-		if ( g_str_has_prefix ( dvb_descr_lnb_type_n[c].name, lnb_name ) ) return dvb_descr_lnb_type_n[c].desc;
+		if ( strcmp ( dvb_lnb_type_n[c].name, lnb_name ) == 0 ) return dvb_lnb_type_n[c].desc;
 	}
 
 	return "None";

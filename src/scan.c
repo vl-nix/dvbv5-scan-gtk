@@ -1,15 +1,15 @@
 /*
-* Copyright 2020 Stepan Perun
+* Copyright 2021 Stepan Perun
 * This program is free software.
 *
 * License: Gnu General Public License GPL-2
 * file:///usr/share/common-licenses/GPL-2
-* http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+* http://www.gnu.org/licenses/gpl-2.0.html
 */
 
 #include "scan.h"
 #include "lnb.h"
-#include "control.h"
+#include "file.h"
 
 enum io_file
 {
@@ -17,7 +17,57 @@ enum io_file
 	OUT_F
 };
 
+struct _Scan
+{
+	GtkGrid parent_instance;
+
+	GtkSpinButton *spinbutton[6];
+	GtkCheckButton *checkbutton[4];
+	GtkComboBoxText *combo_lnb;
+	GtkComboBoxText *combo_lna;
+	GtkButton *button_lnb;
+	GtkEntry *entry_int, *entry_out;
+	GtkComboBoxText *combo_int, *combo_out;
+};
+
 G_DEFINE_TYPE ( Scan, scan, GTK_TYPE_GRID )
+
+static void scan_handler_get_data ( Scan *scan )
+{
+	uint8_t adapter   = (uint8_t)gtk_spin_button_get_value_as_int ( scan->spinbutton[0] );
+	uint8_t frontend  = (uint8_t)gtk_spin_button_get_value_as_int ( scan->spinbutton[1] );
+	uint8_t demux     = (uint8_t)gtk_spin_button_get_value_as_int ( scan->spinbutton[2] );
+	uint8_t time_mult = (uint8_t)gtk_spin_button_get_value_as_int ( scan->spinbutton[3] );
+
+	gboolean new_freqs  = gtk_toggle_button_get_active ( GTK_TOGGLE_BUTTON ( scan->checkbutton[0] ) );
+	gboolean get_detect = gtk_toggle_button_get_active ( GTK_TOGGLE_BUTTON ( scan->checkbutton[1] ) );
+	gboolean get_nit    = gtk_toggle_button_get_active ( GTK_TOGGLE_BUTTON ( scan->checkbutton[2] ) );
+	gboolean other_nit  = gtk_toggle_button_get_active ( GTK_TOGGLE_BUTTON ( scan->checkbutton[3] ) );
+
+	int8_t sat_n = (int8_t)gtk_spin_button_get_value_as_int ( scan->spinbutton[4] );
+	uint8_t diseqc_w = (uint8_t)gtk_spin_button_get_value_as_int ( scan->spinbutton[5] );
+
+	const char *lnb = gtk_combo_box_get_active_id ( GTK_COMBO_BOX ( scan->combo_lnb ) );
+	g_autofree char *lna = gtk_combo_box_text_get_active_text (scan->combo_lna );
+
+	const char *file_i = gtk_entry_get_text ( scan->entry_int );
+	const char *file_o = gtk_entry_get_text ( scan->entry_out );
+
+	g_autofree char *fmi = gtk_combo_box_text_get_active_text (scan->combo_int );
+	g_autofree char *fmo = gtk_combo_box_text_get_active_text (scan->combo_out );
+
+	g_signal_emit_by_name ( scan, "scan-set-data", adapter, frontend, demux, time_mult, new_freqs, get_detect, get_nit, other_nit, 
+		sat_n, diseqc_w, lnb, lna, file_i, file_o, fmi, fmo );
+}
+
+static void scan_signal_changed ( G_GNUC_UNUSED GtkSpinButton *spinbutton, Scan *scan )
+{
+	uint8_t val_a = (uint8_t)gtk_spin_button_get_value_as_int ( scan->spinbutton[0] );
+	uint8_t val_f = (uint8_t)gtk_spin_button_get_value_as_int ( scan->spinbutton[1] );
+	uint8_t val_d = (uint8_t)gtk_spin_button_get_value_as_int ( scan->spinbutton[2] );
+
+	g_signal_emit_by_name ( scan, "scan-set-af", "Adapter", val_a, "Frontend", val_f, "Demux", val_d );
+}
 
 static GtkLabel * scan_create_label ( const char *text )
 {
@@ -35,6 +85,8 @@ static GtkSpinButton * scan_create_spinbutton ( int16_t min, int16_t max, uint8_
 	gtk_spin_button_set_value ( spinbutton, value );
 
 	scan->spinbutton[num] = spinbutton;
+
+	if ( num == 0 || num == 1 || num == 2 ) g_signal_connect ( spinbutton, "value-changed", G_CALLBACK ( scan_signal_changed ), scan );
 
 	gtk_widget_set_visible ( GTK_WIDGET ( spinbutton ), TRUE );
 
@@ -62,6 +114,19 @@ static void scan_append_text_combo_box ( GtkComboBoxText *combo_box, const char 
 	gtk_combo_box_set_active ( GTK_COMBO_BOX ( combo_box ), active );
 }
 
+static void scan_signal_clicked_button_lnb ( GtkButton *button, Scan *scan )
+{
+	const char *lnb_name = gtk_combo_box_get_active_id ( GTK_COMBO_BOX ( scan->combo_lnb ) );
+
+	if ( g_str_has_prefix ( lnb_name, "NONE" ) ) return;
+
+	const char *desc = lnb_get_desc ( lnb_name );
+
+	GtkWindow *window = GTK_WINDOW ( gtk_widget_get_toplevel ( GTK_WIDGET ( button ) ) );
+
+	dvb5_message_dialog ( lnb_name, desc, GTK_MESSAGE_INFO, window );
+}
+
 static GtkBox * scan_create_combo_box_lnb ( Scan *scan )
 {
 	GtkBox *h_box = (GtkBox *)gtk_box_new ( GTK_ORIENTATION_HORIZONTAL, 0 );
@@ -69,10 +134,19 @@ static GtkBox * scan_create_combo_box_lnb ( Scan *scan )
 
 	scan->combo_lnb = (GtkComboBoxText *) gtk_combo_box_text_new ();
 	gtk_combo_box_text_append ( scan->combo_lnb, "NONE", "None" );
-	lnb_set_name_combo ( scan->combo_lnb );
+
+	uint8_t c = 0; for ( c = 0; c < LNB_ALL; c++ )
+	{
+		const char *abr  = lnb_get_abr  ( c );
+		const char *name = lnb_get_name ( c );
+
+		gtk_combo_box_text_append ( scan->combo_lnb, name, abr );
+	}
+
 	gtk_combo_box_set_active ( GTK_COMBO_BOX ( scan->combo_lnb ), 0 );
 
-	scan->button_lnb = control_create_button ( NULL, "dvb-info", "🛈", 16 );
+	scan->button_lnb = (GtkButton *)gtk_button_new_with_label ( "🛈" );
+	g_signal_connect ( scan->button_lnb, "clicked", G_CALLBACK ( scan_signal_clicked_button_lnb ), scan );
 
 	gtk_box_pack_start ( h_box, GTK_WIDGET ( scan->combo_lnb  ), TRUE, TRUE, 0 );
 	gtk_box_pack_start ( h_box, GTK_WIDGET ( scan->button_lnb ), TRUE, TRUE, 0 );
@@ -198,16 +272,67 @@ static void scan_create ( Scan *scan )
 		}
 	}
 
-	gtk_grid_attach ( GTK_GRID ( grid ), GTK_WIDGET ( scan_set_initial_output_file ( "Initial file",     INT_F, scan ) ), 0, d,   2, 1 );
-	gtk_grid_attach ( GTK_GRID ( grid ), GTK_WIDGET ( scan_set_initial_output_file ( "dvb_channel.conf", OUT_F, scan ) ), 2, d++, 2, 1 );
+	g_autofree char *output_file  = g_strconcat ( g_get_home_dir (), "/dvb_channel.conf", NULL );
+
+	gtk_grid_attach ( GTK_GRID ( grid ), GTK_WIDGET ( scan_set_initial_output_file ( "Initial file", INT_F, scan ) ), 0, d,   2, 1 );
+	gtk_grid_attach ( GTK_GRID ( grid ), GTK_WIDGET ( scan_set_initial_output_file ( output_file,    OUT_F, scan ) ), 2, d++, 2, 1 );
 
 	gtk_grid_attach ( GTK_GRID ( grid ), GTK_WIDGET ( scan_create_combo_box_format ( INT_F, scan ) ), 0, d,   2, 1 );
 	gtk_grid_attach ( GTK_GRID ( grid ), GTK_WIDGET ( scan_create_combo_box_format ( OUT_F, scan ) ), 2, d++, 2, 1 );
 }
 
+static void scan_signal_drag_in ( G_GNUC_UNUSED GtkGrid *grid, GdkDragContext *ct, G_GNUC_UNUSED int x, G_GNUC_UNUSED int y,
+        GtkSelectionData *s_data, G_GNUC_UNUSED uint info, guint32 time, Scan *scan )
+{
+	char **uris = gtk_selection_data_get_uris ( s_data );
+
+        g_autofree char *file = uri_get_path ( uris[0] );
+
+        gtk_entry_set_text ( scan->entry_int, file );
+
+	g_strfreev ( uris );
+
+	gtk_drag_finish ( ct, TRUE, FALSE, time );
+}
+
+static void scan_signal_file_open ( GtkEntry *entry, GtkEntryIconPosition icon_pos, G_GNUC_UNUSED GdkEventButton *event, G_GNUC_UNUSED Scan *scan )
+{
+	if ( icon_pos == GTK_ENTRY_ICON_SECONDARY )
+	{
+		GtkWindow *window = GTK_WINDOW ( gtk_widget_get_toplevel ( GTK_WIDGET ( entry ) ) );
+
+		const char *path = ( g_file_test ( "/usr/share/dvb/", G_FILE_TEST_EXISTS | G_FILE_TEST_IS_DIR ) ) ? "/usr/share/dvb/" : g_get_home_dir ();
+
+		g_autofree char *file = file_open ( path, window );
+
+		if ( file ) gtk_entry_set_text ( entry, file );
+	}
+}
+
+static void scan_signal_file_save ( GtkEntry *entry, GtkEntryIconPosition icon_pos, G_GNUC_UNUSED GdkEventButton *event, G_GNUC_UNUSED Scan *scan )
+{
+	if ( icon_pos == GTK_ENTRY_ICON_SECONDARY )
+	{
+		GtkWindow *window = GTK_WINDOW ( gtk_widget_get_toplevel ( GTK_WIDGET ( entry ) ) );
+
+		g_autofree char *file = file_save ( g_get_home_dir (), window );
+
+		if ( file ) gtk_entry_set_text ( entry, file );
+	}
+}
+
 static void scan_init ( Scan *scan )
 {
 	scan_create ( scan );
+
+	gtk_drag_dest_set ( GTK_WIDGET ( scan ), GTK_DEST_DEFAULT_ALL, NULL, 0, GDK_ACTION_COPY );
+	gtk_drag_dest_add_uri_targets  ( GTK_WIDGET ( scan ) );
+	g_signal_connect ( scan, "drag-data-received", G_CALLBACK ( scan_signal_drag_in ), scan );
+
+	g_signal_connect ( scan->entry_int, "icon-press", G_CALLBACK ( scan_signal_file_open ), scan );
+	g_signal_connect ( scan->entry_out, "icon-press", G_CALLBACK ( scan_signal_file_save ), scan );
+
+	g_signal_connect ( scan, "scan-get-data", G_CALLBACK ( scan_handler_get_data ), NULL );
 }
 
 static void scan_finalize ( GObject *object )
@@ -218,6 +343,16 @@ static void scan_finalize ( GObject *object )
 static void scan_class_init ( ScanClass *class )
 {
 	G_OBJECT_CLASS (class)->finalize = scan_finalize;
+
+	g_signal_new ( "scan-set-af", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
+		0, NULL, NULL, NULL, G_TYPE_NONE, 6, G_TYPE_STRING, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_UINT );
+
+	g_signal_new ( "scan-get-data", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
+		0, NULL, NULL, NULL, G_TYPE_NONE, 0 );
+
+	g_signal_new ( "scan-set-data", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
+		0, NULL, NULL, NULL, G_TYPE_NONE, 16, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN, 
+		G_TYPE_INT, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING );
 }
 
 Scan * scan_new ( void )

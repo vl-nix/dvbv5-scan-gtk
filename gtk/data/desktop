@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=@NAME@
-Comment=@COMMENT@
-Exec=@EXEC@
-Icon=@ICON@
-Terminal=@TERMINAL@
-Type=@TYPE@
-Categories=@CATEGORIES@
-X-GNOME-Bugzilla-Version=@VERSION@

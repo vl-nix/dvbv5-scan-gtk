@@ -1,34 +1,56 @@
-project('dvbv5-gtk', 'c', version: '1.20.70', meson_version: '>= 0.50.0', default_options: ['warning_level=2', 'c_std=gnu11'])
-
-bindir = join_paths(get_option('prefix'), get_option('bindir'))
-libdir = join_paths(get_option('prefix'), get_option('libdir'))
+project('dvbv5-gtk', 'c', version: '21.0', meson_version: '>= 0.50.0', default_options: ['warning_level=2', 'c_std=gnu11'])
 
 cc = meson.get_compiler('c')
 
-if get_option('lib')
+c_args = ['-DVERSION="' + meson.project_version() + '"']
 
-  subdir('lib')
+c_args += ['-DPROGNAME="Dvbv5-Gtk"']
 
-else
+c_args = ['-DVERSION="' + meson.project_version() + '"']
 
-  c_args = ['-DVERSION="' + meson.project_version() + '"']
+test_cflags = [
+    '-Wconversion',
+    '-fno-strict-aliasing',
+    '-Wpointer-arith',
+    '-Wmissing-declarations',
+    '-Wmissing-prototypes',
+    '-Wimplicit-function-declaration',
+    '-Wformat=2',
+    '-Wformat-security',
+    '-Wnested-externs',
+    '-Wold-style-definition',
+    '-Wundef',
+    '-Wunused',
+    '-Wcast-align',
+    '-Wmissing-noreturn',
+    '-Wmissing-format-attribute',
+    '-Wmissing-include-dirs',
+    '-Wlogical-op',
+    '-Wignored-qualifiers',
+    '-Wno-discarded-qualifiers',
+    '-Werror=implicit',
+    '-Werror=nonnull',
+    '-Werror=init-self',
+    '-Werror=main',
+    '-Werror=missing-braces',
+    '-Werror=sequence-point',
+    '-Werror=return-type',
+    '-Werror=trigraphs',
+    '-Werror=array-bounds',
+    '-Werror=write-strings',
+    '-Werror=address',
+    '-Werror=int-to-pointer-cast',
+    '-Werror=pointer-to-int-cast',
+    '-Werror=empty-body',
+    '-Werror=write-strings'
+]
 
-  res = []
+common_cflags = cc.get_supported_arguments(test_cflags)
+c_args += common_cflags
 
-  dvbv5_deps = [
-    dependency('gio-2.0', version: '>= 2.50'),
-    dependency('gtk+-3.0', version: '>= 3.22'),
-    dependency('libdvbv5', version: '>= 1.18')
-  ]
+dvb5_deps = [dependency('gtk+-3.0', version: '>= 3.22'), dependency('libdvbv5', version: '>= 1.18')]
 
-  if get_option('light')
-    c_args += ['-DPROGNAME="Dvbv5-Light-Gtk"', '-DLIGHT=1']
-  else
-    c_args += ['-DPROGNAME="Dvbv5-Gtk"']
-    libgstvideo = cc.find_library('libgstvideo-1.0', required: true)
-    dvbv5_deps += [dependency('gstreamer-base-1.0'), libgstvideo]
-  endif
+c = run_command('sh', '-c', 'for file in src/*.h src/*.c; do echo $file; done')
+src = c.stdout().strip().split('\n')
 
-  subdir('gtk')
-
-endif
+executable(meson.project_name(), src, dependencies: dvb5_deps, c_args: c_args, install: true)

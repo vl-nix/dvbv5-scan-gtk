@@ -1,2 +1,0 @@
-option('lib', type: 'boolean', value: false, description: 'build libdvbv5')
-option('light', type: 'boolean', value: false, description: 'Light: Without - Preview / Stream')
