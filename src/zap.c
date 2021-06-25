@@ -48,6 +48,8 @@ struct _Zap
 	GtkComboBoxText *combo_dmx;
 	GtkCheckButton *checkbutton;
 
+	DwrRecMonitor *dm;
+
 	char *channel;
 	ulong rec_signal_id;
 };
@@ -261,7 +263,7 @@ static void zap_signal_toggled_record ( GtkCheckButton *button, Zap *zap )
 
 	gboolean active = gtk_toggle_button_get_active ( GTK_TOGGLE_BUTTON ( button ) );
 
-	if ( !active ) dvr_rec_stop (); else res = dvr_rec_create ( adapter, file_rec );
+	if ( !active ) { zap->dm->stop_rec = 1; zap->dm->total_rec = 0; } else { zap->dm->stop_rec = 0; zap->dm->total_rec = 0; res = dvr_rec_create ( adapter, file_rec, zap->dm ); }
 
 	if ( res ) dvb5_message_dialog ( "", res, GTK_MESSAGE_WARNING, window );
 }
@@ -270,9 +272,19 @@ static void zap_handler_stop ( Zap *zap )
 {
 	zap_set_active_toggled_block ( zap->rec_signal_id, FALSE, zap->checkbutton );
 
-	dvr_rec_stop ();
+	zap->dm->stop_rec = 1;
+	zap->dm->total_rec = 0;
 
 	if ( zap->channel ) { free ( zap->channel ); zap->channel = NULL; }
+}
+
+static const char * zap_handler_get_size ( Zap *zap )
+{
+	if ( !zap->dm->total_rec ) return NULL;
+
+	char *str_size = g_format_size ( zap->dm->total_rec );
+
+	return str_size;
 }
 
 static GtkBox * zap_set_record_file ( const char *file, Zap *zap )
@@ -307,6 +319,10 @@ static GtkBox * zap_set_record_file ( const char *file, Zap *zap )
 
 static void zap_init ( Zap *zap )
 {
+	zap->dm = g_new0 ( DwrRecMonitor, 1 );
+	zap->dm->stop_rec  = 1;
+	zap->dm->total_rec = 0;
+
 	GtkBox *box = GTK_BOX ( zap );
 	gtk_orientable_set_orientation ( GTK_ORIENTABLE ( box ), GTK_ORIENTATION_VERTICAL );
 	gtk_box_set_spacing ( box, 10 );
@@ -362,13 +378,15 @@ static void zap_init ( Zap *zap )
 
 	zap->channel = NULL;
 
-	g_signal_connect ( zap, "zap-stop", G_CALLBACK ( zap_handler_stop ), NULL );
+	g_signal_connect ( zap, "zap-stop",     G_CALLBACK ( zap_handler_stop ), NULL );
+	g_signal_connect ( zap, "zap-get-size", G_CALLBACK ( zap_handler_get_size ), NULL );
 }
 
 static void zap_finalize ( GObject *object )
 {
 	Zap *zap = ZAP_BOX ( object );
 
+	free ( zap->dm );
 	if ( zap->channel ) free ( zap->channel );
 
 	G_OBJECT_CLASS (zap_parent_class)->finalize (object);
@@ -377,6 +395,9 @@ static void zap_finalize ( GObject *object )
 static void zap_class_init ( ZapClass *class )
 {
 	G_OBJECT_CLASS (class)->finalize = zap_finalize;
+
+	g_signal_new ( "zap-get-size", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
+		0, NULL, NULL, NULL, G_TYPE_STRING, 0 );
 
 	g_signal_new ( "zap-get-felock", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
 		0, NULL, NULL, NULL, G_TYPE_BOOLEAN, 0 );

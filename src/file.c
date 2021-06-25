@@ -17,9 +17,6 @@
 #include <fcntl.h>
 #include <errno.h>
 
-static uint8_t stop_rec = 1;
-static lluint total_rec = 0;
-
 typedef struct _DwrRec DwrRec;
 
 struct _DwrRec
@@ -28,6 +25,7 @@ struct _DwrRec
 	int rec_fd;
 
 	GMutex mutex;
+	DwrRecMonitor *drm;
 };
 
 static gpointer dvr_rec_thread ( DwrRec *dvr_rec )
@@ -37,6 +35,7 @@ static gpointer dvr_rec_thread ( DwrRec *dvr_rec )
 	gboolean stop = FALSE;
 	uint32_t buf[BUF_SIZE];
 	ssize_t r = 0, w = 0;
+	uint64_t total = 0;
 
 	struct pollfd pfd;
 	pfd.fd = dvr_rec->dvr_fd;
@@ -75,11 +74,11 @@ static gpointer dvr_rec_thread ( DwrRec *dvr_rec )
 			if ( errno != EINTR ) { printf ( "Write error: %m \n" ); break; }
 		}
 
-		total_rec += r;
+		total += r;
 
 		g_mutex_lock ( &dvr_rec->mutex );
 
-		if ( stop_rec ) { total_rec = 0; stop = TRUE; }
+		if ( dvr_rec->drm->stop_rec ) { stop = TRUE; dvr_rec->drm->total_rec = 0; total = 0; } else dvr_rec->drm->total_rec = total;
 
 		g_mutex_unlock ( &dvr_rec->mutex );
 	}
@@ -93,10 +92,8 @@ static gpointer dvr_rec_thread ( DwrRec *dvr_rec )
 	return NULL;
 }
 
-const char * dvr_rec_create ( uint8_t adapter, const char *rec )
+const char * dvr_rec_create ( uint8_t adapter, const char *rec, DwrRecMonitor *dm )
 {
-	stop_rec = 0;
-
 	char dvrdev[PATH_MAX];
 	sprintf ( dvrdev, "/dev/dvb/adapter%d/dvr0", adapter );
 
@@ -121,6 +118,7 @@ const char * dvr_rec_create ( uint8_t adapter, const char *rec )
 
 	DwrRec *dvr_rec = g_new0 ( DwrRec, 1 );
 
+	dvr_rec->drm = dm;
 	dvr_rec->dvr_fd = dvr_fd;
 	dvr_rec->rec_fd = rec_fd;
 
@@ -128,17 +126,6 @@ const char * dvr_rec_create ( uint8_t adapter, const char *rec )
 	g_thread_unref ( thread );
 
 	return NULL;
-}
-
-void dvr_rec_stop ( void )
-{
-	stop_rec = 1;
-	total_rec = 0;
-}
-
-lluint dvr_rec_get_size ( void )
-{
-	return total_rec;
 }
 
 void dvb5_message_dialog ( const char *error, const char *file_or_info, GtkMessageType mesg_type, GtkWindow *window )

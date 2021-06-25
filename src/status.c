@@ -9,7 +9,6 @@
 
 #include "status.h"
 #include "level.h"
-#include "file.h"
 
 struct _Status
 {
@@ -24,24 +23,13 @@ struct _Status
 
 G_DEFINE_TYPE ( Status, status, GTK_TYPE_BOX )
 
-static void status_handler_update ( Status *status, uint32_t freq, uint8_t qual, char *sgl, char *snr, uint8_t sgl_gd, uint8_t snr_gd, gboolean fe_lock )
+static void status_handler_update ( Status *status, uint32_t freq, char *fmt_size, uint8_t qual, char *sgl, char *snr, uint8_t sgl_gd, uint8_t snr_gd, gboolean fe_lock )
 {
-	lluint val = dvr_rec_get_size ();
+	char text[256];
+	sprintf ( text, "Rec:  %s ", fmt_size );
 
-	if ( val )
-	{
-		g_autofree char *str_size = g_format_size ( val );
+	gtk_label_set_text ( status->dvr_record, ( fmt_size ) ? text : "" );
 
-		char text_r[256];
-		sprintf ( text_r, "Rec:  %s ", str_size );
-
-		gtk_label_set_text ( status->dvr_record, text_r );
-	}
-	else
-		gtk_label_set_text ( status->dvr_record, "" );
-
-
-	char text[100];
 	sprintf ( text, "Freq:  %d ", freq );
 
 	gtk_label_set_text ( status->freq_scan, ( freq ) ? text : "" );
@@ -157,7 +145,7 @@ static void status_class_init ( StatusClass *class )
 		0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_STRING );
 
 	g_signal_new ( "status-update", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
-		0, NULL, NULL, NULL, G_TYPE_NONE, 7, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_BOOLEAN );
+		0, NULL, NULL, NULL, G_TYPE_NONE, 8, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_BOOLEAN );
 }
 
 Status * status_new (void)

@@ -101,14 +101,14 @@ static void dvb5_handler_scan_start ( G_GNUC_UNUSED Status *status, Dvb5Win *win
 	g_signal_emit_by_name ( win->scan, "scan-get-data" );
 }
 
-static void dvb5_handler_scan_stop ( Status *status, Dvb5Win *win )
+static void dvb5_handler_scan_stop ( G_GNUC_UNUSED Status *status, Dvb5Win *win )
 {
 	g_signal_emit_by_name ( win->zap, "zap-stop"      );
 	g_signal_emit_by_name ( win->dvb, "dvb-zap-stop"  );
 	g_signal_emit_by_name ( win->dvb, "dvb-scan-stop" );
 
 	win->fe_lock = FALSE;
-	g_signal_emit_by_name ( status, "status-update", 0, 0, "Signal", "Snr", 0, 0, FALSE );
+	g_signal_emit_by_name ( win->status, "status-update", 0, NULL, 0, "Signal", "Snr", 0, 0, FALSE );
 }
 
 static void dvb5_handler_scan_data ( G_GNUC_UNUSED Scan *scan, uint8_t a, uint8_t f, uint8_t d, uint8_t t, gboolean q, gboolean c, gboolean n, gboolean o, 
@@ -154,8 +154,13 @@ static void dvb5_handler_dvb_name ( G_GNUC_UNUSED Dvb *dvb, const char *dvb_name
 
 static void dvb5_handler_stats_upd ( G_GNUC_UNUSED Dvb *dvb, uint32_t freq, uint8_t qual, char *sgl, char *snr, uint8_t sgl_p, uint8_t snr_p, gboolean fe_lock, Dvb5Win *win )
 {
+	char *size = NULL;
+	g_signal_emit_by_name ( win->zap, "zap-get-size", &size );
+
 	win->fe_lock = fe_lock;
-	g_signal_emit_by_name ( win->status, "status-update", freq, qual, sgl, snr, sgl_p, snr_p, fe_lock );
+	g_signal_emit_by_name ( win->status, "status-update", freq, size, qual, sgl, snr, sgl_p, snr_p, fe_lock );
+
+	free ( size );
 }
 
 static void dvb5_handler_scan_af ( G_GNUC_UNUSED Scan *scan, const char *name_a, uint8_t a, const char *name_f, uint8_t f, const char *name_d, uint8_t d, Dvb5Win *win )

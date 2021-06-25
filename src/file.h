@@ -11,7 +11,13 @@
 
 #include <gtk/gtk.h>
 
-typedef long long unsigned int lluint;
+typedef struct _DwrRecMonitor DwrRecMonitor;
+
+struct _DwrRecMonitor
+{
+	uint8_t stop_rec;
+	uint64_t total_rec;
+};
 
 char * uri_get_path ( const char * );
 
@@ -21,8 +27,4 @@ char * file_save ( const char *, const char *, GtkWindow * );
 
 void dvb5_message_dialog ( const char *, const char *, GtkMessageType , GtkWindow * );
 
-void dvr_rec_stop   ( void );
-
-lluint dvr_rec_get_size ( void );
-
-const char * dvr_rec_create ( uint8_t , const char * );
+const char * dvr_rec_create ( uint8_t , const char *, DwrRecMonitor * );
