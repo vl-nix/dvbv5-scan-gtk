@@ -9,6 +9,7 @@
 
 #include "status.h"
 #include "level.h"
+#include "file.h"
 
 struct _Status
 {
@@ -18,12 +19,28 @@ struct _Status
 
 	GtkLabel *dvb_name;
 	GtkLabel *freq_scan;
+	GtkLabel *dvr_record;
 };
 
 G_DEFINE_TYPE ( Status, status, GTK_TYPE_BOX )
 
 static void status_handler_update ( Status *status, uint32_t freq, uint8_t qual, char *sgl, char *snr, uint8_t sgl_gd, uint8_t snr_gd, gboolean fe_lock )
 {
+	lluint val = dvr_rec_get_size ();
+
+	if ( val )
+	{
+		g_autofree char *str_size = g_format_size ( val );
+
+		char text_r[256];
+		sprintf ( text_r, "Rec:  %s ", str_size );
+
+		gtk_label_set_text ( status->dvr_record, text_r );
+	}
+	else
+		gtk_label_set_text ( status->dvr_record, "" );
+
+
 	char text[100];
 	sprintf ( text, "Freq:  %d ", freq );
 
@@ -105,6 +122,11 @@ static void status_init ( Status *status )
 	gtk_widget_set_halign ( GTK_WIDGET ( status->freq_scan ), GTK_ALIGN_START );
 	gtk_box_pack_end ( box, GTK_WIDGET ( status->freq_scan ), FALSE, FALSE, 0 );
 	gtk_widget_set_visible (  GTK_WIDGET ( status->freq_scan ), TRUE );
+
+	status->dvr_record = (GtkLabel *)gtk_label_new ( "" );
+	gtk_widget_set_halign ( GTK_WIDGET ( status->dvr_record ), GTK_ALIGN_START );
+	gtk_box_pack_end ( box, GTK_WIDGET ( status->dvr_record ), FALSE, FALSE, 0 );
+	gtk_widget_set_visible (  GTK_WIDGET ( status->dvr_record ), TRUE );
 
 	g_signal_connect ( status, "set-dvb-name",  G_CALLBACK ( status_handler_set_dvb_name  ), NULL );
 	g_signal_connect ( status, "status-update", G_CALLBACK ( status_handler_update ), NULL );	

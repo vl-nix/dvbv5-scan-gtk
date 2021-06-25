@@ -1,7 +1,9 @@
 ### Dvbv5-Gtk - Gtk+3 interface to [DVBv5 tool](https://www.linuxtv.org/wiki/index.php/DVBv5_Tools)
 
 * Scan, Zap
+* Zap: Record
 * Drag and Drop: Scan, Zap
+
 
 #### Dependencies
 
@@ -9,14 +11,11 @@
 * libdvbv5 ( & dev )
 * libgtk 3.0 ( & dev )
 
+
 #### Quality
 
 * Good - Magenta; Ok - Aqua; Poor - Orange
 
-#### Record & Preview
-
-* cat '/dev/dvb/adapter0/dvr0' > rec.ts
-* ffplay '/dev/dvb/adapter0/dvr0'
 
 #### Build
 

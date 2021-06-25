@@ -315,7 +315,7 @@ static void scan_signal_file_save ( GtkEntry *entry, GtkEntryIconPosition icon_p
 	{
 		GtkWindow *window = GTK_WINDOW ( gtk_widget_get_toplevel ( GTK_WIDGET ( entry ) ) );
 
-		g_autofree char *file = file_save ( g_get_home_dir (), window );
+		g_autofree char *file = file_save ( g_get_home_dir (), "dvb_channel.conf", window );
 
 		if ( file ) gtk_entry_set_text ( entry, file );
 	}

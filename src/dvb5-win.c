@@ -26,6 +26,7 @@ struct _Dvb5Win
 	Status *status;
 
 	Dvb *dvb;
+	gboolean fe_lock;
 	uint8_t adapter, frontend, demux;
 };
 
@@ -102,9 +103,11 @@ static void dvb5_handler_scan_start ( G_GNUC_UNUSED Status *status, Dvb5Win *win
 
 static void dvb5_handler_scan_stop ( Status *status, Dvb5Win *win )
 {
+	g_signal_emit_by_name ( win->zap, "zap-stop"      );
 	g_signal_emit_by_name ( win->dvb, "dvb-zap-stop"  );
 	g_signal_emit_by_name ( win->dvb, "dvb-scan-stop" );
 
+	win->fe_lock = FALSE;
 	g_signal_emit_by_name ( status, "status-update", 0, 0, "Signal", "Snr", 0, 0, FALSE );
 }
 
@@ -129,6 +132,16 @@ static void dvb5_handler_zap_data ( G_GNUC_UNUSED Zap *zap, uint8_t dmx_out, con
 	g_signal_emit_by_name ( win->dvb, "dvb-zap", win->adapter, win->frontend, win->demux, dmx_out, channel, file );
 }
 
+static gboolean dvb5_handler_zap_lock ( G_GNUC_UNUSED Zap *zap, Dvb5Win *win )
+{
+	return win->fe_lock;
+}
+
+static uint8_t dvb5_handler_zap_adapter ( G_GNUC_UNUSED Zap *zap, Dvb5Win *win )
+{
+	return win->adapter;
+}
+
 static void dvb5_handler_scan_info ( G_GNUC_UNUSED Dvb *dvb, const char *ret_str, Dvb5Win *win )
 {
 	dvb5_message_dialog ( "", ret_str, GTK_MESSAGE_ERROR, GTK_WINDOW ( win ) );
@@ -141,6 +154,7 @@ static void dvb5_handler_dvb_name ( G_GNUC_UNUSED Dvb *dvb, const char *dvb_name
 
 static void dvb5_handler_stats_upd ( G_GNUC_UNUSED Dvb *dvb, uint32_t freq, uint8_t qual, char *sgl, char *snr, uint8_t sgl_p, uint8_t snr_p, gboolean fe_lock, Dvb5Win *win )
 {
+	win->fe_lock = fe_lock;
 	g_signal_emit_by_name ( win->status, "status-update", freq, qual, sgl, snr, sgl_p, snr_p, fe_lock );
 }
 
@@ -158,6 +172,7 @@ static void dvb5_handler_scan_af ( G_GNUC_UNUSED Scan *scan, const char *name_a,
 static void dvb5_win_init ( Dvb5Win *win )
 {
 	win->dvb = dvb_new ();
+	win->fe_lock = FALSE;
 	win->adapter = 0, win->demux = 0, win->frontend = 0;
 
 	g_signal_connect ( win->dvb, "dvb-name",      G_CALLBACK ( dvb5_handler_dvb_name  ), win );
@@ -168,13 +183,15 @@ static void dvb5_win_init ( Dvb5Win *win )
 	win->scan   = scan_new ();
 	win->status = status_new ();
 
-	g_signal_connect ( win->zap,    "zap-set-data",  G_CALLBACK ( dvb5_handler_zap_data   ), win );
-	g_signal_connect ( win->scan,   "scan-set-af",   G_CALLBACK ( dvb5_handler_scan_af    ), win );
-	g_signal_connect ( win->scan,   "scan-set-data", G_CALLBACK ( dvb5_handler_scan_data  ), win );
-	g_signal_connect ( win->status, "scan-stop",     G_CALLBACK ( dvb5_handler_scan_stop  ), win );
-	g_signal_connect ( win->status, "scan-start",    G_CALLBACK ( dvb5_handler_scan_start ), win );
-	g_signal_connect ( win->status, "win-info",      G_CALLBACK ( dvb5_handler_win_info   ), win );
-	g_signal_connect ( win->status, "win-close",     G_CALLBACK ( dvb5_handler_win_close  ), win );
+	g_signal_connect ( win->zap,    "zap-set-data",    G_CALLBACK ( dvb5_handler_zap_data    ), win );
+	g_signal_connect ( win->zap,    "zap-get-felock",  G_CALLBACK ( dvb5_handler_zap_lock    ), win );
+	g_signal_connect ( win->zap,    "zap-get-adapter", G_CALLBACK ( dvb5_handler_zap_adapter ), win );
+	g_signal_connect ( win->scan,   "scan-set-af",     G_CALLBACK ( dvb5_handler_scan_af     ), win );
+	g_signal_connect ( win->scan,   "scan-set-data",   G_CALLBACK ( dvb5_handler_scan_data   ), win );
+	g_signal_connect ( win->status, "scan-stop",       G_CALLBACK ( dvb5_handler_scan_stop   ), win );
+	g_signal_connect ( win->status, "scan-start",      G_CALLBACK ( dvb5_handler_scan_start  ), win );
+	g_signal_connect ( win->status, "win-info",        G_CALLBACK ( dvb5_handler_win_info    ), win );
+	g_signal_connect ( win->status, "win-close",       G_CALLBACK ( dvb5_handler_win_close   ), win );
 
 	dvb5_win_create ( win );
 
