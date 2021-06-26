@@ -17,7 +17,12 @@
 enum cols_n
 {
 	COL_NUM,
+	COL_REC,
 	COL_CHL,
+	COL_SIZE,
+	COL_VPID,
+	COL_APID,
+	COL_FILE,
 	NUM_COLS
 };
 
@@ -56,7 +61,7 @@ struct _Zap
 
 G_DEFINE_TYPE ( Zap, zap, GTK_TYPE_BOX )
 
-static void zap_treeview_append ( const char *channel, Zap *zap )
+static void zap_treeview_append ( const char *channel, uint16_t apid, uint16_t vpid, Zap *zap )
 {
 	GtkTreeIter iter;
 	GtkTreeModel *model = gtk_tree_view_get_model ( zap->treeview );
@@ -68,6 +73,8 @@ static void zap_treeview_append ( const char *channel, Zap *zap )
 	gtk_list_store_set    ( GTK_LIST_STORE ( model ), &iter,
 				COL_NUM, ind + 1,
 				COL_CHL, channel,
+				COL_VPID, vpid,
+				COL_APID, apid,
 				-1 );
 }
 
@@ -117,7 +124,7 @@ static GtkScrolledWindow * zap_create_treeview_scroll ( Zap *zap )
 	gtk_scrolled_window_set_policy ( scroll, GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC );
 	gtk_widget_set_visible ( GTK_WIDGET ( scroll ), TRUE );
 
-	GtkListStore *store = gtk_list_store_new ( NUM_COLS, G_TYPE_UINT, G_TYPE_STRING );
+	GtkListStore *store = gtk_list_store_new ( NUM_COLS, G_TYPE_UINT, G_TYPE_BOOLEAN, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_STRING );
 
 	zap->treeview = (GtkTreeView *)gtk_tree_view_new_with_model ( GTK_TREE_MODEL ( store ) );
 	gtk_drag_dest_set ( GTK_WIDGET ( zap->treeview ), GTK_DEST_DEFAULT_ALL, NULL, 0, GDK_ACTION_COPY );
@@ -130,14 +137,23 @@ static GtkScrolledWindow * zap_create_treeview_scroll ( Zap *zap )
 	struct Column { const char *name; const char *type; uint8_t num; } column_n[] =
 	{
 		{ "Num",        "text",   COL_NUM },
-		{ "Channel",    "text",   COL_CHL }
+		{ "Rec",        "active", COL_REC },
+		{ "Channel",    "text",   COL_CHL },
+		{ "Size",       "text",   COL_SIZE },
+		{ "Video",      "text",   COL_VPID },
+		{ "Audio",      "text",   COL_APID },
+		{ "File",       "text",   COL_FILE }
 	};
 
 	uint8_t c = 0; for ( c = 0; c < G_N_ELEMENTS ( column_n ); c++ )
 	{
-		renderer = gtk_cell_renderer_text_new ();
+		if ( c == COL_REC )
+			renderer = gtk_cell_renderer_toggle_new ();
+		else
+			renderer = gtk_cell_renderer_text_new ();
 
 		column = gtk_tree_view_column_new_with_attributes ( column_n[c].name, renderer, column_n[c].type, column_n[c].num, NULL );
+		if ( c == COL_REC || c == COL_SIZE || c == COL_VPID || c == COL_APID || c == COL_FILE ) gtk_tree_view_column_set_visible ( column, FALSE );
 		gtk_tree_view_append_column ( zap->treeview, column );
 	}
 
@@ -175,8 +191,8 @@ static gboolean zap_signal_parse_dvb_file ( const char *file, Zap *zap )
 
 	for ( entry = dvb_file->first_entry; entry != NULL; entry = entry->next )
 	{
-		if ( entry->channel  ) zap_treeview_append ( entry->channel, zap );
-		if ( entry->vchannel ) zap_treeview_append ( entry->vchannel, zap );
+		if ( entry->channel  ) zap_treeview_append ( entry->channel,  ( entry->audio_pid ) ? entry->audio_pid[0] : 0, ( entry->video_pid ) ? entry->video_pid[0] : 0, zap );
+		if ( entry->vchannel ) zap_treeview_append ( entry->vchannel, ( entry->audio_pid ) ? entry->audio_pid[0] : 0, ( entry->video_pid ) ? entry->video_pid[0] : 0, zap );
 	}
 
 	dvb_file_free ( dvb_file );
@@ -263,7 +279,15 @@ static void zap_signal_toggled_record ( GtkCheckButton *button, Zap *zap )
 
 	gboolean active = gtk_toggle_button_get_active ( GTK_TOGGLE_BUTTON ( button ) );
 
-	if ( !active ) { zap->dm->stop_rec = 1; zap->dm->total_rec = 0; } else { zap->dm->stop_rec = 0; zap->dm->total_rec = 0; res = dvr_rec_create ( adapter, file_rec, zap->dm ); }
+	if ( !active )
+	{
+		zap->dm->stop_rec = 1; zap->dm->total_rec = 0;
+	}
+	else 
+	{
+		zap->dm->stop_rec = 0; zap->dm->total_rec = 0;
+		res = dvr_rec_create ( adapter, file_rec, zap->dm );
+	}
 
 	if ( res ) dvb5_message_dialog ( "", res, GTK_MESSAGE_WARNING, window );
 }
@@ -403,6 +427,9 @@ static void zap_class_init ( ZapClass *class )
 		0, NULL, NULL, NULL, G_TYPE_BOOLEAN, 0 );
 
 	g_signal_new ( "zap-get-adapter", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
+		0, NULL, NULL, NULL, G_TYPE_UINT, 0 );
+
+	g_signal_new ( "zap-get-demux", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
 		0, NULL, NULL, NULL, G_TYPE_UINT, 0 );
 
 	g_signal_new ( "zap-stop", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,

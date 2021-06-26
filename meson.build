@@ -1,4 +1,4 @@
-project('dvbv5-gtk', 'c', version: '21.6', meson_version: '>= 0.50.0', default_options: ['warning_level=2', 'c_std=gnu11'])
+project('dvbv5-gtk', 'c', version: '21.7', meson_version: '>= 0.50.0', default_options: ['warning_level=2', 'c_std=gnu11'])
 
 desktop = meson.project_name() + '.desktop'
 

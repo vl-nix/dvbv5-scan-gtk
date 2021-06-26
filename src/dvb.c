@@ -581,6 +581,45 @@ static void dvb_handler_zap_stop ( Dvb *dvb )
 	}
 }
 
+static int _frontend_stats ( struct dvb_v5_fe_parms *parms, Dvb *dvb )
+{
+	char buf[512], *p;
+	int rc, i, len, show;
+
+	rc = dvb_fe_get_stats ( parms );
+	if ( rc ) return -1;
+
+	p = buf;
+	len = sizeof(buf);
+	// dvb_fe_snprintf_stat ( parms, DTV_STATUS, NULL, 0, &p, &len, &show );
+
+	for ( i = 0; i < MAX_DTV_STATS; i++ )
+	{
+		show = 1;
+
+		dvb_fe_snprintf_stat ( parms, DTV_QUALITY, "Quality ", i, &p, &len, &show );
+		dvb_fe_snprintf_stat ( parms, DTV_STAT_SIGNAL_STRENGTH, "  Signal ", i, &p, &len, &show );
+		dvb_fe_snprintf_stat ( parms, DTV_STAT_CNR, "  C/N ", i, &p, &len, &show );
+/*
+		dvb_fe_snprintf_stat ( parms, DTV_STAT_ERROR_BLOCK_COUNT, "UCB", i,  &p, &len, &show );
+		dvb_fe_snprintf_stat ( parms, DTV_BER, "postBER", i,  &p, &len, &show );
+		dvb_fe_snprintf_stat ( parms, DTV_PRE_BER, "preBER", i,  &p, &len, &show );
+		dvb_fe_snprintf_stat ( parms, DTV_PER, "PER", i,  &p, &len, &show );
+*/
+		if ( p != buf )
+		{
+			// g_message ( "%d: %s ", i, buf );
+
+			g_signal_emit_by_name ( dvb, "stats-org", i, buf );
+
+			p = buf;
+			len = sizeof(buf);
+		}
+	}
+
+	return 0;
+}
+
 static void dvb_fe_stat_get ( Dvb *dvb )
 {
 	struct dvb_v5_fe_parms *parms = dvb->dvb_fe->fe_parms;
@@ -612,6 +651,8 @@ static void dvb_fe_stat_get ( Dvb *dvb )
 	sprintf ( snr_s, "Signal:  %u%% ", snr_p );
 
 	g_signal_emit_by_name ( dvb, "stats-update", dvb->freq_scan, qual, sgl_s, snr_s, sgl_p, snr_p, fe_lock );
+
+	_frontend_stats ( parms, dvb );
 }
 
 static const char * dvb_info ( uint8_t adapter, uint8_t frontend, Dvb *dvb )
@@ -759,6 +800,9 @@ static void dvb_class_init ( DvbClass *class )
 	GObjectClass *oclass = G_OBJECT_CLASS (class);
 
 	oclass->finalize = dvb_finalize;
+
+	g_signal_new ( "stats-org", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
+		0, NULL, NULL, NULL, G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING );
 
 	g_signal_new ( "dvb-name", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
 		0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_STRING );

@@ -19,14 +19,25 @@ struct _Status
 	GtkLabel *dvb_name;
 	GtkLabel *freq_scan;
 	GtkLabel *dvr_record;
+	GtkLabel *org_status[4]; // MAX_DTV_STATS
 };
 
 G_DEFINE_TYPE ( Status, status, GTK_TYPE_BOX )
 
+static void status_handler_org ( Status *status, int num, char *text )
+{
+	const char *label[4] = { "Layer A: ", "Layer B: ","Layer C: ", "Layer D: " };
+
+	char set_text[256];
+	sprintf ( set_text, "%s  %s ", label[num], text );
+
+	gtk_label_set_text ( status->org_status[num], set_text );
+}
+
 static void status_handler_update ( Status *status, uint32_t freq, char *fmt_size, uint8_t qual, char *sgl, char *snr, uint8_t sgl_gd, uint8_t snr_gd, gboolean fe_lock )
 {
 	char text[256];
-	sprintf ( text, "Rec:  %s ", fmt_size );
+	sprintf ( text, " %s ", fmt_size );
 
 	gtk_label_set_text ( status->dvr_record, ( fmt_size ) ? text : "" );
 
@@ -50,6 +61,16 @@ static void status_clicked_scan ( G_GNUC_UNUSED GtkButton *button, Status *statu
 static void status_clicked_stop ( G_GNUC_UNUSED GtkButton *button, Status *status )
 {
 	g_signal_emit_by_name ( status, "scan-stop" );
+
+	gtk_label_set_text ( status->freq_scan,  "" );
+	gtk_label_set_text ( status->dvr_record, "" );
+
+	const char *label[4] = { "Layer A: ", "Layer B: ","Layer C: ", "Layer D: " };
+
+	uint c = 0; for ( c = 0; c < 4; c++ ) // MAX_DTV_STATS
+	{
+		gtk_label_set_text ( status->org_status[c], label[c] );
+	}
 }
 
 static void status_clicked_info ( G_GNUC_UNUSED GtkButton *button, Status *status )
@@ -60,6 +81,25 @@ static void status_clicked_info ( G_GNUC_UNUSED GtkButton *button, Status *statu
 static void status_clicked_exit ( G_GNUC_UNUSED GtkButton *button, Status *status )
 {
 	g_signal_emit_by_name ( status, "win-close" );
+}
+
+static void status_sw_layers ( GObject *gobject, G_GNUC_UNUSED GParamSpec *pspec, Status *status )
+{
+	gboolean state = gtk_switch_get_state ( GTK_SWITCH ( gobject ) );
+
+	uint c = 0; for ( c = 0; c < 4; c++ ) // MAX_DTV_STATS
+	{
+		gtk_widget_set_visible ( GTK_WIDGET ( status->org_status[c] ), state );
+	}
+}
+
+static GtkSwitch * status_create_switch_layers ( Status *status )
+{
+	GtkSwitch *gswitch = (GtkSwitch *)gtk_switch_new ();
+	gtk_switch_set_state ( gswitch, FALSE );
+	g_signal_connect ( gswitch, "notify::active", G_CALLBACK ( status_sw_layers ), status );
+
+	return gswitch;
 }
 
 static void status_init ( Status *status )
@@ -76,6 +116,20 @@ static void status_init ( Status *status )
 	status->dvb_name = (GtkLabel *)gtk_label_new ( "Dvb Device" );
 	gtk_box_pack_start ( box, GTK_WIDGET ( status->dvb_name ), FALSE, FALSE, 0 );
 	gtk_widget_set_visible (  GTK_WIDGET ( status->dvb_name ), TRUE );
+
+	GtkSwitch *gswitch = status_create_switch_layers ( status );
+	gtk_box_pack_start ( box, GTK_WIDGET ( gswitch ), FALSE, FALSE, 10 );
+	gtk_widget_set_visible (  GTK_WIDGET ( gswitch ), TRUE );
+
+	const char *label[4] = { "Layer A: ", "Layer B: ","Layer C: ", "Layer D: " };
+
+	uint c = 0; for ( c = 0; c < 4; c++ ) // MAX_DTV_STATS
+	{
+		status->org_status[c] = (GtkLabel *)gtk_label_new ( label[c] );
+		gtk_widget_set_halign ( GTK_WIDGET ( status->org_status[c] ), GTK_ALIGN_START );
+		gtk_box_pack_start ( box, GTK_WIDGET ( status->org_status[c] ), FALSE, FALSE, 0 );
+		gtk_widget_set_visible (  GTK_WIDGET ( status->org_status[c] ), FALSE );
+	}
 
 	GtkBox *h_box = (GtkBox *)gtk_box_new ( GTK_ORIENTATION_HORIZONTAL, 0 );
 	gtk_box_set_spacing ( h_box, 5 );
@@ -106,18 +160,25 @@ static void status_init ( Status *status )
 	status->level = level_new ();
 	gtk_box_pack_end ( box, GTK_WIDGET ( status->level ), FALSE, FALSE, 5 );
 
+	h_box = (GtkBox *)gtk_box_new ( GTK_ORIENTATION_HORIZONTAL, 0 );
+	gtk_box_set_spacing ( h_box, 50 );
+	gtk_widget_set_visible (  GTK_WIDGET ( h_box ), TRUE );
+
+	gtk_box_pack_end ( box, GTK_WIDGET ( h_box ), FALSE, FALSE, 5 );
+
 	status->freq_scan = (GtkLabel *)gtk_label_new ( "" );
 	gtk_widget_set_halign ( GTK_WIDGET ( status->freq_scan ), GTK_ALIGN_START );
-	gtk_box_pack_end ( box, GTK_WIDGET ( status->freq_scan ), FALSE, FALSE, 0 );
+	gtk_box_pack_start ( h_box, GTK_WIDGET ( status->freq_scan ), FALSE, FALSE, 0 );
 	gtk_widget_set_visible (  GTK_WIDGET ( status->freq_scan ), TRUE );
 
 	status->dvr_record = (GtkLabel *)gtk_label_new ( "" );
 	gtk_widget_set_halign ( GTK_WIDGET ( status->dvr_record ), GTK_ALIGN_START );
-	gtk_box_pack_end ( box, GTK_WIDGET ( status->dvr_record ), FALSE, FALSE, 0 );
+	gtk_box_pack_end ( h_box, GTK_WIDGET ( status->dvr_record ), FALSE, FALSE, 0 );
 	gtk_widget_set_visible (  GTK_WIDGET ( status->dvr_record ), TRUE );
 
 	g_signal_connect ( status, "set-dvb-name",  G_CALLBACK ( status_handler_set_dvb_name  ), NULL );
-	g_signal_connect ( status, "status-update", G_CALLBACK ( status_handler_update ), NULL );	
+	g_signal_connect ( status, "status-update", G_CALLBACK ( status_handler_update ), NULL );
+	g_signal_connect ( status, "status-org",    G_CALLBACK ( status_handler_org    ), NULL );	
 }
 
 static void status_finalize ( GObject *object )
@@ -143,6 +204,9 @@ static void status_class_init ( StatusClass *class )
 
 	g_signal_new ( "set-dvb-name", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
 		0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_STRING );
+
+	g_signal_new ( "status-org", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
+		0, NULL, NULL, NULL, G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_STRING );
 
 	g_signal_new ( "status-update", G_TYPE_FROM_CLASS ( class ), G_SIGNAL_RUN_LAST,
 		0, NULL, NULL, NULL, G_TYPE_NONE, 8, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_UINT, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_UINT, G_TYPE_UINT, G_TYPE_BOOLEAN );

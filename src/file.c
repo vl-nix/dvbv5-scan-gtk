@@ -13,9 +13,12 @@
 
 #include "file.h"
 
+#include <time.h>
 #include <poll.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
 
 typedef struct _DwrRec DwrRec;
 
@@ -36,6 +39,9 @@ static gpointer dvr_rec_thread ( DwrRec *dvr_rec )
 	uint32_t buf[BUF_SIZE];
 	ssize_t r = 0, w = 0;
 	uint64_t total = 0;
+
+	time_t t_start, t_cur;
+	time ( &t_start );
 
 	struct pollfd pfd;
 	pfd.fd = dvr_rec->dvr_fd;
@@ -74,13 +80,20 @@ static gpointer dvr_rec_thread ( DwrRec *dvr_rec )
 			if ( errno != EINTR ) { printf ( "Write error: %m \n" ); break; }
 		}
 
-		total += r;
+		total += (uint32_t)r;
 
-		g_mutex_lock ( &dvr_rec->mutex );
+		time ( &t_cur );
 
-		if ( dvr_rec->drm->stop_rec ) { stop = TRUE; dvr_rec->drm->total_rec = 0; total = 0; } else dvr_rec->drm->total_rec = total;
+		if ( t_cur > t_start )
+		{
+			g_mutex_lock ( &dvr_rec->mutex );
 
-		g_mutex_unlock ( &dvr_rec->mutex );
+			if ( dvr_rec->drm->stop_rec ) { stop = TRUE; dvr_rec->drm->total_rec = 0; total = 0; } else dvr_rec->drm->total_rec = total;
+
+			g_mutex_unlock ( &dvr_rec->mutex );
+
+			time ( &t_start );
+		}
 	}
 
 	close ( dvr_rec->dvr_fd );
