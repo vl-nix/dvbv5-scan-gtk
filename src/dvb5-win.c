@@ -108,7 +108,7 @@ static void dvb5_handler_scan_stop ( G_GNUC_UNUSED Status *status, Dvb5Win *win 
 	g_signal_emit_by_name ( win->dvb, "dvb-scan-stop" );
 
 	win->fe_lock = FALSE;
-	g_signal_emit_by_name ( win->status, "status-update", 0, NULL, 0, "Signal", "Snr", 0, 0, FALSE );
+	g_signal_emit_by_name ( win->status, "status-update", 0, NULL, 0, "Signal", "C/N", 0, 0, FALSE );
 }
 
 static void dvb5_handler_scan_data ( G_GNUC_UNUSED Scan *scan, uint8_t a, uint8_t f, uint8_t d, uint8_t t, gboolean q, gboolean c, gboolean n, gboolean o, 

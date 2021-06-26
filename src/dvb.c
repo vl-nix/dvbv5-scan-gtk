@@ -648,7 +648,7 @@ static void dvb_fe_stat_get ( Dvb *dvb )
 	sprintf ( sgl_s, "Signal:  %u%% ", sgl_p );
 
 	char snr_s[256];
-	sprintf ( snr_s, "Signal:  %u%% ", snr_p );
+	sprintf ( snr_s, "C/N:  %u%% ", snr_p );
 
 	g_signal_emit_by_name ( dvb, "stats-update", dvb->freq_scan, qual, sgl_s, snr_s, sgl_p, snr_p, fe_lock );
 
@@ -709,7 +709,7 @@ static gboolean dvb_info_show_stats ( Dvb *dvb )
 	{
 		if ( dvb->dvb_fe ) { dvb_dev_free ( dvb->dvb_fe ); dvb->dvb_fe = NULL; }
 
-		g_signal_emit_by_name ( dvb, "stats-update", 0, 0, "Signal", "Snr", 0, 0, FALSE );
+		g_signal_emit_by_name ( dvb, "stats-update", 0, 0, "Signal", "C/N", 0, 0, FALSE );
 
 		return FALSE;
 	}

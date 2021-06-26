@@ -46,7 +46,7 @@ static void level_init ( Level *level )
 	gtk_orientable_set_orientation ( GTK_ORIENTABLE ( box ), GTK_ORIENTATION_VERTICAL );
 	gtk_box_set_spacing ( box, 3 );
 
-	level->sgn_snr = (GtkLabel *)gtk_label_new ( "Quality  ◉  Signal  ◉  Snr" );
+	level->sgn_snr = (GtkLabel *)gtk_label_new ( "Quality  ◉  Signal  ◉  C/N" );
 	level->bar_sgn = (GtkProgressBar *)gtk_progress_bar_new ();
 	level->bar_snr = (GtkProgressBar *)gtk_progress_bar_new ();
 

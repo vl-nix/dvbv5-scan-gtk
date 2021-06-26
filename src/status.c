@@ -117,9 +117,15 @@ static void status_init ( Status *status )
 	gtk_box_pack_start ( box, GTK_WIDGET ( status->dvb_name ), FALSE, FALSE, 0 );
 	gtk_widget_set_visible (  GTK_WIDGET ( status->dvb_name ), TRUE );
 
+	GtkBox *h_box = (GtkBox *)gtk_box_new ( GTK_ORIENTATION_HORIZONTAL, 0 );
+	gtk_box_set_spacing ( h_box, 5 );
+	gtk_widget_set_visible (  GTK_WIDGET ( h_box ), TRUE );
+
 	GtkSwitch *gswitch = status_create_switch_layers ( status );
-	gtk_box_pack_start ( box, GTK_WIDGET ( gswitch ), FALSE, FALSE, 10 );
+	gtk_box_pack_end ( h_box, GTK_WIDGET ( gswitch ), FALSE, FALSE, 0 );
 	gtk_widget_set_visible (  GTK_WIDGET ( gswitch ), TRUE );
+
+	gtk_box_pack_start ( box, GTK_WIDGET ( h_box ), FALSE, FALSE, 5 );
 
 	const char *label[4] = { "Layer A: ", "Layer B: ","Layer C: ", "Layer D: " };
 
@@ -131,7 +137,7 @@ static void status_init ( Status *status )
 		gtk_widget_set_visible (  GTK_WIDGET ( status->org_status[c] ), FALSE );
 	}
 
-	GtkBox *h_box = (GtkBox *)gtk_box_new ( GTK_ORIENTATION_HORIZONTAL, 0 );
+	h_box = (GtkBox *)gtk_box_new ( GTK_ORIENTATION_HORIZONTAL, 0 );
 	gtk_box_set_spacing ( h_box, 5 );
 	gtk_widget_set_visible (  GTK_WIDGET ( h_box ), TRUE );
 
