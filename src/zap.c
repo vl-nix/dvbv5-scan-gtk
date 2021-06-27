@@ -112,7 +112,7 @@ static void zap_signal_trw_act ( GtkTreeView *tree_view, GtkTreePath *path, G_GN
 	g_autofree char *dir = g_path_get_dirname ( file_rec );
 
 	char file_new[PATH_MAX];
-	sprintf ( file_new, "%s/%s.ts", dir, date, zap->channel );
+	sprintf ( file_new, "%s/%s-%s.ts", dir, date, zap->channel );
 
 	gtk_entry_set_text ( zap->entry_rec, file_new );
 
