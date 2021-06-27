@@ -19,6 +19,8 @@ struct _DwrRecMonitor
 	uint64_t total_rec;
 };
 
+char * time_to_str ( void );
+
 char * uri_get_path ( const char * );
 
 char * file_open ( const char *, GtkWindow * );

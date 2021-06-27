@@ -108,10 +108,11 @@ static void zap_signal_trw_act ( GtkTreeView *tree_view, GtkTreePath *path, G_GN
 
 	const char *file_rec = gtk_entry_get_text ( zap->entry_rec );
 
+	g_autofree char *date = time_to_str ();
 	g_autofree char *dir = g_path_get_dirname ( file_rec );
 
 	char file_new[PATH_MAX];
-	sprintf ( file_new, "%s/%s.ts", dir, zap->channel );
+	sprintf ( file_new, "%s/%s.ts", dir, date, zap->channel );
 
 	gtk_entry_set_text ( zap->entry_rec, file_new );
 
@@ -240,7 +241,11 @@ static void zap_signal_record_file ( GtkEntry *entry, GtkEntryIconPosition icon_
 	{
 		GtkWindow *window = GTK_WINDOW ( gtk_widget_get_toplevel ( GTK_WIDGET ( entry ) ) );
 
-		g_autofree char *file = file_save ( g_get_home_dir (), "Record.ts", window );
+		const char *file_rec = gtk_entry_get_text ( zap->entry_rec );
+
+		g_autofree char *name = g_path_get_basename ( file_rec );
+
+		g_autofree char *file = file_save ( g_get_home_dir (), name, window );
 
 		if ( file ) gtk_entry_set_text ( entry, file );
 	}

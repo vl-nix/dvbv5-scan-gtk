@@ -201,3 +201,15 @@ char * file_save ( const char *dir, const char *file_save, GtkWindow *window )
 	return file;
 }
 
+char * time_to_str ( void )
+{
+	GDateTime *date = g_date_time_new_now_local ();
+
+	char *str_time = g_date_time_format ( date, "%j-%Y-%T" );
+
+	g_date_time_unref ( date );
+
+	return str_time;
+}
+
+
