@@ -49,7 +49,9 @@ struct _Zap
 
 	GtkTreeView *treeview;
 	GtkEntry *entry_rec;
+	GtkEntry *entry_play;
 	GtkEntry *entry_file;
+	GtkButton *button_play;
 	GtkComboBoxText *combo_dmx;
 	GtkCheckButton *checkbutton;
 
@@ -302,16 +304,6 @@ static void zap_signal_toggled_record ( GtkCheckButton *button, Zap *zap )
 	}
 }
 
-static void zap_handler_stop ( Zap *zap )
-{
-	zap_set_active_toggled_block ( zap->rec_signal_id, FALSE, zap->checkbutton );
-
-	zap->dm->stop_rec = 1;
-	zap->dm->total_rec = 0;
-
-	if ( zap->channel ) { free ( zap->channel ); zap->channel = NULL; }
-}
-
 static const char * zap_handler_get_size ( Zap *zap )
 {
 	if ( !zap->dm->total_rec ) return NULL;
@@ -338,6 +330,7 @@ static GtkBox * zap_set_record_file ( const char *file, Zap *zap )
 	g_signal_connect ( zap->entry_rec, "icon-press", G_CALLBACK ( zap_signal_record_file ), zap );
 
 	zap->checkbutton = (GtkCheckButton *)gtk_check_button_new_with_label ( " Record " );
+	gtk_widget_set_size_request ( GTK_WIDGET ( zap->checkbutton ) , 100, -1 );
 	zap->rec_signal_id = g_signal_connect ( zap->checkbutton, "toggled", G_CALLBACK ( zap_signal_toggled_record ), zap );
 
 	gtk_box_pack_start ( h_box, GTK_WIDGET ( zap->checkbutton ), FALSE, FALSE, 0 );
@@ -349,6 +342,105 @@ static GtkBox * zap_set_record_file ( const char *file, Zap *zap )
 	gtk_box_pack_start ( v_box, GTK_WIDGET ( h_box ), FALSE, FALSE, 0 );
 
 	return v_box;
+}
+
+static void zap_signal_clicked_play ( GtkButton *button, Zap *zap )
+{
+	GtkWindow *window = ( button ) ? GTK_WINDOW ( gtk_widget_get_toplevel ( GTK_WIDGET ( button ) ) ) : NULL;
+
+	if ( button )
+	{
+		gboolean fe_lock = FALSE;
+		g_signal_emit_by_name ( zap, "zap-get-felock", &fe_lock );
+
+		if ( !fe_lock || !zap->channel )
+		{
+			dvb5_message_dialog ( "", "Zap?", GTK_MESSAGE_WARNING, window );
+
+			return;
+		}
+	}
+
+	const char *file = gtk_entry_get_text ( zap->entry_play );
+
+	int SIZE = 1024;
+	char cmd[PATH_MAX];
+	sprintf ( cmd, "ps ax | grep mplayer" );
+
+	char line[SIZE];
+	FILE * ret = popen ( cmd, "r" );
+
+	fgets ( line, SIZE, ret );
+
+	pid_t pid = 0;
+	if ( g_strrstr ( line, file ) ) pid = (int)strtoul ( line, NULL, 10 );
+
+	pclose ( ret );
+
+	if ( !button && !pid ) return;
+
+	if ( !pid )
+	{
+		GError *error = NULL;
+		GAppInfo *app = g_app_info_create_from_commandline ( file, NULL, G_APP_INFO_CREATE_NONE, &error );
+
+		g_app_info_launch ( app, NULL, NULL, &error );
+
+		if ( error )
+		{
+			dvb5_message_dialog ( "", error->message, GTK_MESSAGE_ERROR, window );
+
+			g_error_free ( error );
+		}
+		else
+			{ gtk_button_set_label ( button, "Stop" ); }
+
+		g_object_unref ( app );
+	}
+	else
+		{ if ( button ) gtk_button_set_label ( button, "Play" ); kill ( pid, SIGINT ); }
+
+}
+
+static GtkBox * zap_set_play_file ( Zap *zap )
+{
+	GtkBox *v_box = (GtkBox *)gtk_box_new ( GTK_ORIENTATION_VERTICAL, 0 );
+	gtk_widget_set_visible ( GTK_WIDGET ( v_box ), TRUE );
+
+	GtkBox *h_box = (GtkBox *)gtk_box_new ( GTK_ORIENTATION_HORIZONTAL, 0 );
+	gtk_box_set_spacing ( h_box, 5 );
+	gtk_widget_set_visible ( GTK_WIDGET ( h_box ), TRUE );
+
+	zap->entry_play = (GtkEntry *)gtk_entry_new ();
+	gtk_entry_set_text ( zap->entry_play, "mplayer -nocache /dev/dvb/adapter0/dvr0" );
+	g_object_set ( zap->entry_play, "editable", TRUE, NULL );
+
+	zap->button_play = (GtkButton *)gtk_button_new_with_label ( " Play " );
+	gtk_widget_set_size_request ( GTK_WIDGET ( zap->button_play ) , 100, -1 );
+	g_signal_connect ( zap->button_play, "clicked", G_CALLBACK ( zap_signal_clicked_play ), zap );
+
+	gtk_box_pack_start ( h_box, GTK_WIDGET ( zap->button_play ), FALSE, FALSE, 0 );
+	gtk_box_pack_start ( h_box, GTK_WIDGET ( zap->entry_play  ), TRUE,  TRUE,  0 );
+
+	gtk_widget_set_visible ( GTK_WIDGET ( zap->button_play ), TRUE );
+	gtk_widget_set_visible ( GTK_WIDGET ( zap->entry_play  ), TRUE );
+
+	gtk_box_pack_start ( v_box, GTK_WIDGET ( h_box ), FALSE, FALSE, 0 );
+
+	return v_box;
+}
+
+static void zap_handler_stop ( Zap *zap )
+{
+	gtk_button_set_label ( zap->button_play, "Play" );
+	zap_set_active_toggled_block ( zap->rec_signal_id, FALSE, zap->checkbutton );
+
+	zap->dm->stop_rec = 1;
+	zap->dm->total_rec = 0;
+
+	zap_signal_clicked_play ( NULL, zap );
+
+	if ( zap->channel ) { free ( zap->channel ); zap->channel = NULL; }
 }
 
 static void zap_init ( Zap *zap )
@@ -405,8 +497,10 @@ static void zap_init ( Zap *zap )
 	sprintf ( file_rec, "%s/%s.ts", g_get_home_dir (), "Record" );
 
 	GtkBox *box_rec = zap_set_record_file ( file_rec, zap );
-
 	gtk_box_pack_start ( box, GTK_WIDGET ( box_rec ), FALSE, FALSE, 0 );
+
+	GtkBox *box_play = zap_set_play_file ( zap );
+	gtk_box_pack_start ( box, GTK_WIDGET ( box_play ), FALSE, FALSE, 0 );
 
 	gtk_box_pack_start ( box, GTK_WIDGET ( h_box ), FALSE, FALSE, 0 );
 

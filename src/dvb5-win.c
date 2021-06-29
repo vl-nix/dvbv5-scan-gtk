@@ -57,35 +57,6 @@ static void dvbv5_about ( Dvb5Win *win )
 	gtk_widget_destroy ( GTK_WIDGET (dialog) );
 }
 
-static void dvb5_win_create ( Dvb5Win *win )
-{
-	setlocale ( LC_NUMERIC, "C" );
-
-	GtkWindow *window = GTK_WINDOW ( win );
-
-	gtk_window_set_title ( window, "Dvbv5-Gtk");
-	gtk_window_set_icon_name ( window, "terminal" );
-
-	GtkBox *main_vbox = (GtkBox *)gtk_box_new ( GTK_ORIENTATION_VERTICAL, 0 );
-	gtk_box_set_spacing ( main_vbox, 5 );
-	gtk_widget_set_visible ( GTK_WIDGET ( main_vbox ), TRUE );
-
-	win->notebook = (GtkNotebook *)gtk_notebook_new ();
-	gtk_notebook_set_scrollable ( win->notebook, TRUE );
-	gtk_widget_set_visible ( GTK_WIDGET ( win->notebook ), TRUE );
-
-	gtk_notebook_append_page ( win->notebook, GTK_WIDGET ( win->scan   ), gtk_label_new ( "Scan"   ) );
-	gtk_notebook_append_page ( win->notebook, GTK_WIDGET ( win->zap    ), gtk_label_new ( "Zap"    ) );
-	gtk_notebook_append_page ( win->notebook, GTK_WIDGET ( win->status ), gtk_label_new ( "Status" ) );
-
-	gtk_notebook_set_tab_pos ( win->notebook, GTK_POS_TOP );
-	gtk_box_pack_start ( main_vbox, GTK_WIDGET (win->notebook), TRUE, TRUE, 0 );
-
-	gtk_container_add  ( GTK_CONTAINER ( window ), GTK_WIDGET ( main_vbox ) );
-
-	gtk_window_present ( GTK_WINDOW ( win ) );
-}
-
 static void dvb5_handler_win_info ( G_GNUC_UNUSED Status *status, Dvb5Win *win )
 {
 	dvbv5_about ( win );
@@ -182,6 +153,41 @@ static void dvb5_handler_scan_af ( G_GNUC_UNUSED Scan *scan, const char *name_a,
 	win->demux = d;
 
 	g_message ( "%s:: %s = %u, %s = %u, %s = %u ", __func__, name_a, a, name_f, f,name_d, d );
+}
+
+static void dvb5_win_destroy ( G_GNUC_UNUSED GtkWindow *window, Dvb5Win *win )
+{
+	dvb5_handler_scan_stop ( win->status, win );
+}
+
+static void dvb5_win_create ( Dvb5Win *win )
+{
+	setlocale ( LC_NUMERIC, "C" );
+
+	GtkWindow *window = GTK_WINDOW ( win );
+	g_signal_connect ( window, "destroy", G_CALLBACK ( dvb5_win_destroy ), win );
+
+	gtk_window_set_title ( window, "Dvbv5-Gtk");
+	gtk_window_set_icon_name ( window, "terminal" );
+
+	GtkBox *main_vbox = (GtkBox *)gtk_box_new ( GTK_ORIENTATION_VERTICAL, 0 );
+	gtk_box_set_spacing ( main_vbox, 5 );
+	gtk_widget_set_visible ( GTK_WIDGET ( main_vbox ), TRUE );
+
+	win->notebook = (GtkNotebook *)gtk_notebook_new ();
+	gtk_notebook_set_scrollable ( win->notebook, TRUE );
+	gtk_widget_set_visible ( GTK_WIDGET ( win->notebook ), TRUE );
+
+	gtk_notebook_append_page ( win->notebook, GTK_WIDGET ( win->scan   ), gtk_label_new ( "Scan"   ) );
+	gtk_notebook_append_page ( win->notebook, GTK_WIDGET ( win->zap    ), gtk_label_new ( "Zap"    ) );
+	gtk_notebook_append_page ( win->notebook, GTK_WIDGET ( win->status ), gtk_label_new ( "Status" ) );
+
+	gtk_notebook_set_tab_pos ( win->notebook, GTK_POS_TOP );
+	gtk_box_pack_start ( main_vbox, GTK_WIDGET (win->notebook), TRUE, TRUE, 0 );
+
+	gtk_container_add  ( GTK_CONTAINER ( window ), GTK_WIDGET ( main_vbox ) );
+
+	gtk_window_present ( GTK_WINDOW ( win ) );
 }
 
 static void dvb5_win_init ( Dvb5Win *win )
