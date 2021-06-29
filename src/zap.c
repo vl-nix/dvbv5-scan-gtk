@@ -294,7 +294,12 @@ static void zap_signal_toggled_record ( GtkCheckButton *button, Zap *zap )
 		res = dvr_rec_create ( adapter, file_rec, zap->dm );
 	}
 
-	if ( res ) dvb5_message_dialog ( "", res, GTK_MESSAGE_WARNING, window );
+	if ( res )
+	{
+		zap_set_active_toggled_block ( zap->rec_signal_id, FALSE, zap->checkbutton );
+
+		dvb5_message_dialog ( "", res, GTK_MESSAGE_WARNING, window );
+	}
 }
 
 static void zap_handler_stop ( Zap *zap )
