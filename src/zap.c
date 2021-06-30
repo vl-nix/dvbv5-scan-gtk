@@ -361,24 +361,23 @@ static void zap_signal_clicked_play ( GtkButton *button, Zap *zap )
 		}
 	}
 
+	int pid = 0, SIZE = 1024;
 	const char *file = gtk_entry_get_text ( zap->entry_play );
 
-	char **lines = g_strsplit ( file, " ", 0 );
-
-	int SIZE = 1024;
-	char cmd[PATH_MAX];
-	sprintf ( cmd, "ps ax | grep %s", lines[0] );
-
 	char line[SIZE];
-	FILE * ret = popen ( cmd, "r" );
+	FILE *fp = popen ( "ps -T -f -o pid:1,args", "r" );
 
-	fgets ( line, SIZE, ret );
+	while ( !feof (fp) )
+	{
+		if ( fgets ( line, SIZE, fp ) )
+		{
+			fgets ( line, SIZE, fp );
 
-	pid_t pid = 0;
-	if ( g_strrstr ( line, file ) ) pid = (int)strtoul ( line, NULL, 10 );
+			if ( g_strrstr ( line, file ) ) pid = (int)strtoul ( line, NULL, 10 );
+		}
+	}
 
-	pclose ( ret );
-	g_strfreev ( lines );
+	pclose ( fp );
 
 	if ( !button && !pid ) return;
 
